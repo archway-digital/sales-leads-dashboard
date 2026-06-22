@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lead Audit Dashboard — Archway Computer</title>
+<style>
+  :root {
+    --bg:#ffffff;--bg2:#f5f5f7;--bg3:#ebebed;
+    --text:#1a1a1a;--text2:#555;--text3:#999;
+    --border:#e0e0e0;--radius:8px;--radius-lg:12px;
+  }
+  @media(prefers-color-scheme:dark){
+    :root{--bg:#141414;--bg2:#1e1e1e;--bg3:#2a2a2a;--text:#f0f0f0;--text2:#aaa;--text3:#666;--border:#2e2e2e;}
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);padding:24px;font-size:13px;}
+  h1{font-size:20px;font-weight:600;margin-bottom:4px;}
+  .subtitle{color:var(--text2);font-size:13px;margin-bottom:20px;}
+
+  /* ── Overall stat cards ── */
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;}
+  @media(max-width:700px){.cards{grid-template-columns:repeat(2,1fr);}}
+  .card{background:var(--bg2);border-radius:var(--radius);padding:14px 16px;border:.5px solid var(--border);}
+  .card-label{font-size:11px;color:var(--text2);margin-bottom:4px;}
+  .card-val{font-size:28px;font-weight:500;line-height:1;}
+  .card-sub{font-size:11px;color:var(--text3);margin-top:3px;}
+
+  /* ── Per-rep section ── */
+  .section-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em;}
+  .rep-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
+  @media(max-width:900px){.rep-grid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:500px){.rep-grid{grid-template-columns:1fr;}}
+  .rep-card{background:var(--bg2);border-radius:var(--radius-lg);padding:16px;border:.5px solid var(--border);display:flex;flex-direction:column;gap:14px;}
+  .rep-header{display:flex;align-items:baseline;justify-content:space-between;}
+  .rep-name{font-size:14px;font-weight:600;}
+  .rep-total{font-size:26px;font-weight:500;line-height:1;}
+  .rep-total-label{font-size:11px;color:var(--text3);margin-top:1px;}
+  .rep-section-label{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+  .rep-bars{display:flex;flex-direction:column;gap:5px;}
+  .rep-bar-row{display:flex;align-items:center;gap:7px;font-size:11px;}
+  .rep-bar-label{width:72px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .rep-bar-track{flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+  .rep-bar-fill{height:100%;border-radius:3px;}
+  .rep-bar-num{width:20px;text-align:right;color:var(--text);font-weight:500;}
+  .rep-status-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .rep-status-pill{display:flex;flex-direction:column;align-items:center;padding:5px 10px;border-radius:6px;font-size:11px;line-height:1.3;flex:1;min-width:42px;}
+  .rep-status-pill .num{font-size:16px;font-weight:600;}
+  .rep-status-pill .lbl{font-size:10px;margin-top:2px;}
+  .pill-hot{background:rgba(59,109,17,.12);color:#3B6D11;}
+  .pill-warm{background:rgba(186,117,23,.12);color:#854F0B;}
+  .pill-cool{background:rgba(153,60,29,.12);color:#993C1D;}
+  .pill-cold{background:rgba(163,45,45,.1);color:#A32D2D;}
+  .rep-accent-sam{border-top:3px solid #185FA5;}
+  .rep-accent-hannah{border-top:3px solid #534AB7;}
+  .rep-accent-walter{border-top:3px solid #3B6D11;}
+  .rep-accent-brad{border-top:3px solid #854F0B;}
+
+  /* ── Filters + table ── */
+  .filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;}
+  .filters select,.filters input{font-size:13px;padding:6px 10px;height:32px;border-radius:var(--radius);border:.5px solid var(--border);background:var(--bg2);color:var(--text);outline:none;}
+  .filters select:focus,.filters input:focus{border-color:#185FA5;}
+  .filters input{flex:1;min-width:160px;}
+  #count-label{font-size:12px;color:var(--text3);white-space:nowrap;}
+  .tbl-wrap{overflow-x:auto;border:.5px solid var(--border);border-radius:var(--radius-lg);}
+  table{width:100%;border-collapse:collapse;}
+  th{background:var(--bg2);padding:8px 10px;text-align:left;font-weight:500;font-size:11px;color:var(--text2);white-space:nowrap;cursor:pointer;user-select:none;border-bottom:.5px solid var(--border);}
+  th:hover{color:var(--text);}
+  td{padding:7px 10px;border-bottom:.5px solid var(--border);vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:var(--bg2);}
+  tr.row-hot td{background:rgba(59,109,17,.06);}
+  tr.row-warm td{background:rgba(186,117,23,.06);}
+  tr.row-cold td{background:rgba(163,45,45,.05);}
+  .badge{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:500;white-space:nowrap;}
+  .b-new{background:#E6F1FB;color:#185FA5;}.b-att{background:#FAEEDA;color:#854F0B;}
+  .b-con{background:#EAF3DE;color:#3B6D11;}.b-disc{background:#EEEDFE;color:#534AB7;}
+  .b-hot{background:#EAF3DE;color:#3B6D11;}.b-warm{background:#FAEEDA;color:#854F0B;}
+  .b-cool{background:#FAECE7;color:#993C1D;}.b-cold{background:#FCEBEB;color:#A32D2D;}
+  .b-owner-s{background:#E6F1FB;color:#185FA5;}.b-owner-h{background:#EEEDFE;color:#534AB7;}
+  .b-owner-w{background:#EAF3DE;color:#3B6D11;}.b-owner-b{background:#FAEEDA;color:#854F0B;}
+  .rep-sam{color:#185FA5;font-weight:500;}.rep-hannah{color:#534AB7;font-weight:500;}
+  .rep-walter{color:#3B6D11;font-weight:500;}.rep-brad{color:#854F0B;font-weight:500;}
+  .rep-mary{color:#993C1D;font-weight:500;}.rep-naomi{color:#555;font-weight:500;}
+  .rep-other{color:var(--text2);}.rep-none{color:var(--text3);font-style:italic;}
+  .flag-dup{color:#854F0B;font-size:10px;margin-left:3px;font-weight:600;}
+  .flag-fire{color:#A32D2D;font-size:10px;margin-left:3px;font-weight:700;}
+  .no-results{padding:32px;text-align:center;color:var(--text3);}
+  .footer{margin-top:20px;font-size:11px;color:var(--text3);text-align:center;}
+
+  /* ── Modal ── */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;padding:20px;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--bg);border-radius:var(--radius-lg);border:.5px solid var(--border);width:100%;max-width:520px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 16px 48px rgba(0,0,0,.18);}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:.5px solid var(--border);}
+  .modal-title{font-size:15px;font-weight:600;}
+  .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);line-height:1;padding:4px 6px;border-radius:4px;}
+  .modal-close:hover{background:var(--bg2);}
+  .modal-body{overflow-y:auto;padding:12px 0;}
+  .modal-item{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;gap:12px;border-bottom:.5px solid var(--border);}
+  .modal-item:last-child{border-bottom:none;}
+  .modal-item:hover{background:var(--bg2);}
+  .modal-item-left{display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .modal-item-name{font-size:13px;font-weight:500;color:var(--text);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .modal-item-name:hover{text-decoration:underline;}
+  .modal-item-co{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .modal-item-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;}
+  .modal-item-stage{font-size:10px;}
+  .modal-item-reply{font-size:11px;color:var(--text2);white-space:nowrap;}
+  .rep-status-pill{cursor:pointer;border:none;font-family:inherit;}
+  .rep-status-pill:hover{filter:brightness(.92);}
+</style>
+</head>
+<body>
+
+<h1>Lead Audit Dashboard</h1>
+<p class="subtitle">Archway Computer &mdash; as of June 19, 2026</p>
+
+<!-- Overall summary -->
+<div class="cards" id="stat-cards"></div>
+
+<!-- Per-rep breakdown -->
+<div class="section-title">Breakdown by sales rep</div>
+<div class="rep-grid" id="rep-grid"></div>
+
+<!-- Table -->
+<div class="section-title">All leads</div>
+<div class="filters">
+  <select id="f-owner"><option value="">All reps</option><option value="Sam">Sam Ruben</option><option value="Hannah">Hannah Butler</option><option value="Walter">Walter Harry</option><option value="Brad">Brad Ruben</option></select>
+  <select id="f-stage"><option value="">All stages</option><option>New</option><option>Attempting</option><option>Connected</option><option>Discovery Booked</option></select>
+  <select id="f-status"><option value="">All statuses</option><option value="hot">Hot (0-7d)</option><option value="warm">Warm (8-21d)</option><option value="cooling">Cooling (22-45d)</option><option value="cold">Cold (46d+)</option><option value="dup">Duplicates</option><option value="flag">Flagged</option></select>
+  <select id="f-repTo"><option value="">Replied to (all)</option></select>
+  <input type="text" id="f-search" placeholder="Search contact or company&hellip;">
+  <span id="count-label"></span>
+</div>
+<div class="tbl-wrap">
+  <table>
+    <thead><tr>
+      <th style="min-width:155px" data-col="contact">Contact</th>
+      <th style="min-width:140px" data-col="company">Company</th>
+      <th style="min-width:60px" data-col="owner">Rep</th>
+      <th style="min-width:80px" data-col="stage">Stage</th>
+      <th style="min-width:70px" data-col="hrs">Hrs in stage</th>
+      <th style="min-width:80px" data-col="reply">Last reply</th>
+      <th style="min-width:115px" data-col="repliedTo">Replied to</th>
+      <th style="min-width:70px" data-col="next">Next task</th>
+      <th style="min-width:74px" data-col="status">Status</th>
+      <th style="min-width:46px">Flags</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<p class="footer">Data pulled from HubSpot CRM &mdash; Archway Computer internal use only</p>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modal-title"></span>
+      <button class="modal-close" id="modal-close">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+const TODAY = new Date('2026-06-19');
+const MS_DAY = 86400000;
+
+const REPLY_TO = {
+  'Jared Morgan':'Sam Ruben','Marsha Carpenter':'Sam Ruben','ASHLEY Fleetwood':'Sam Ruben',
+  'Renee McCall':'Brad Ruben','Stuart Bridgman':'Sam Ruben','Ray Howard':'Sam Ruben',
+  'Alan Czaplicki':'Sam Ruben','Kayley Smith':'Sam Ruben','Gerald Wood':'Hannah Butler',
+  'Jeff Bickerstaff':'Sam Ruben','John Warn':'Sam Ruben','Kendall Keil':'Hannah Butler',
+  'Sherri Lewis':'Sam Ruben','Leandro Aguiar':'Sam Ruben','Payton Herbst':'Sam Ruben',
+  'Kimberly Johnson':'Sam Ruben','Kevin Panter':'Brad Ruben','Lusine Hayrapetyan':'April Mendoza',
+  'Rebecca Ricciardi':'Naomi Andrada','Tim Dean':'Support ticket','Aimee Coffey':'Hannah Butler',
+  'Stephen Galo (steve)':'Brad Ruben','Michael Trahan':'Walter Harry','Ken Carmona':'April Mendoza',
+  'NOAH SCHURING':'Sam Ruben','Olivia Leon':'Naomi Andrada','Kristina LaBarre':'Hannah Butler',
+  'Brian Ruiz':'Mary Rojo','Abby Moshier':'Walter Harry',
+};
+
+const HS_ACCOUNT = '6869933';
+const CONTACT_IDS = {
+  'Jared Morgan':142770943501,'Denise Carmon':82740281645,'Marsha Carpenter':941551,
+  'Hugh Pham':256594,'ASHLEY Fleetwood':237292,'Deitrick Broussard':974101,
+  'Renee McCall':346383189748,'Michael Lugo':600697,'Amy Hamm':608551,
+  'Jeff Bickerstaff':453452,'Dan DeSario':227997,'Len Miller':1650801,
+  'John Warn':264788,'Ray Howard':1530351,'Stuart Bridgman':188522,
+  'Joseph Dodd':261379,'Ray Olivas':291830,'Chris Wilcox':100265987932,
+  'Gerald Wood':187803,'Kayley Smith':92163708444,'Kendall Keil':489181515503,
+  'Jon Marsh':77234254668,'Sherri Lewis':1851201,'Alan Czaplicki':197672,
+  'Leandro Aguiar':492568910545,'Chanda Shirley':243088,'Jessica Foster':78425447746,
+  'Gina Simpson':497334056634,'Payton Herbst':141834815325,'MELISSA ESMURRIA':82811909767,
+  'Deneen Manor':528151,'Kevin Panter':1241651,'Lusine Hayrapetyan':115858068862,
+  'Angela McCall':500372940517,'Carol Virden':117664966459,'Kimberly Johnson':500353425103,
+  'Karen Stokowski':1683001,'Rebecca Ricciardi':584451,'Tim Dean':207091,
+  'Elissa Biggerstaff':251747,'Timothy Gill':998661,'Stephen Galo (info)':154585434386,
+  'Aimee Coffey':77307604804,'Stephen Galo (steve)':130471465761,'Michael Trahan':104512374394,
+  'Ken Carmona':31292075449,'NOAH SCHURING':118475715357,'Olivia Leon':1774601,
+  'Kristina LaBarre':54270532400,'Brian Ruiz':241350,'Abby Moshier':97745338910,
+};
+function hsLink(contact){const cid=CONTACT_IDS[contact];return cid?`https://app.hubspot.com/contacts/${HS_ACCOUNT}/contact/${cid}`:null;}
+
+const raw = [
+  {id:'780088150717',contact:'Jared Morgan',company:'Paducah Insurance',stage:'Connected',owner:'Sam',hrs:746,reply:'2026-06-19',next:'2026-06-19',opens:10,dup:true,flag:null},
+  {id:'780521699009',contact:'Denise Carmon',company:'Wheeler & Taylor Inc.',stage:'New',owner:'Sam',hrs:744,reply:'2024-12-09',next:null,opens:2,dup:false,flag:null},
+  {id:'780132667081',contact:'Marsha Carpenter',company:'Patrick H Carpenter',stage:'Connected',owner:'Sam',hrs:741,reply:'2026-05-28',next:null,opens:10,dup:true,flag:null},
+  {id:'780704903888',contact:'Jared Morgan',company:'Paducah Insurance',stage:'Connected',owner:'Sam',hrs:741,reply:'2026-06-19',next:'2026-06-19',opens:10,dup:true,flag:null},
+  {id:'781233718971',contact:'Hugh Pham',company:'Western Insurance Marketing',stage:'New',owner:'Sam',hrs:719,reply:'2024-06-27',next:null,opens:3,dup:false,flag:null},
+  {id:'781224615666',contact:'ASHLEY Fleetwood',company:'BHC Insurance',stage:'New',owner:'Sam',hrs:719,reply:'2026-05-20',next:null,opens:64,dup:false,flag:null},
+  {id:'779247620823',contact:'Deitrick Broussard',company:'People First Insurance',stage:'Attempting',owner:'Sam',hrs:719,reply:null,next:'2026-06-22',opens:4,dup:false,flag:null},
+  {id:'781316484803',contact:'Renee McCall',company:'Superior Insurance Services',stage:'New',owner:'Sam',hrs:719,reply:'2026-05-14',next:null,opens:6,dup:false,flag:null},
+  {id:'781339118289',contact:'Michael Lugo',company:'Benefit Mgmt Specialists',stage:'New',owner:'Sam',hrs:717,reply:'2025-10-31',next:null,opens:170,dup:false,flag:null},
+  {id:'778964599517',contact:'Amy Hamm',company:'Insurance Connections NW',stage:'Attempting',owner:'Sam',hrs:713,reply:'2025-01-23',next:null,opens:3,dup:false,flag:null},
+  {id:'781944806085',contact:'Jeff Bickerstaff',company:'Bickerstaff Insurance',stage:'Connected',owner:'Sam',hrs:694,reply:'2026-06-11',next:'2026-06-19',opens:109,dup:true,flag:null},
+  {id:'781973024494',contact:'Jeff Bickerstaff',company:'Bickerstaff Insurance',stage:'Connected',owner:'Sam',hrs:694,reply:'2026-06-11',next:'2026-06-19',opens:109,dup:true,flag:null},
+  {id:'781427769065',contact:'Dan DeSario',company:'DeSario Insurance Agency',stage:'Attempting',owner:'Sam',hrs:688,reply:'2026-04-10',next:'2026-07-01',opens:8,dup:false,flag:null},
+  {id:'781656427229',contact:'Len Miller',company:'Miller & Associates Ins.',stage:'Attempting',owner:'Sam',hrs:688,reply:'2025-12-22',next:null,opens:6,dup:false,flag:null},
+  {id:'781849188038',contact:'John Warn',company:'Rue Insurance',stage:'Connected',owner:'Sam',hrs:675,reply:'2026-05-22',next:'2026-06-22',opens:22,dup:true,flag:null},
+  {id:'781833350844',contact:'John Warn',company:'Rue Insurance',stage:'Connected',owner:'Sam',hrs:675,reply:'2026-05-22',next:'2026-06-22',opens:22,dup:true,flag:null},
+  {id:'782607955686',contact:'Ray Howard',company:'Howard Insurance',stage:'Connected',owner:'Sam',hrs:672,reply:'2026-06-01',next:null,opens:31,dup:true,flag:null},
+  {id:'782249900766',contact:'Stuart Bridgman',company:'CAV Insurance Agency',stage:'Connected',owner:'Sam',hrs:670,reply:'2026-05-22',next:null,opens:118,dup:true,flag:null},
+  {id:'780095325944',contact:'Stuart Bridgman',company:'CAV Insurance Agency',stage:'Connected',owner:'Sam',hrs:670,reply:'2026-05-22',next:null,opens:118,dup:true,flag:null},
+  {id:'782371892943',contact:'Joseph Dodd',company:'All-Star Insurance',stage:'Attempting',owner:'Hannah',hrs:669,reply:'2026-04-14',next:'2026-07-13',opens:115,dup:false,flag:'churn'},
+  {id:'782035627714',contact:'Ray Olivas',company:'ChurchWest Insurance',stage:'Attempting',owner:'Hannah',hrs:669,reply:'2025-08-04',next:'2026-08-24',opens:13,dup:false,flag:null},
+  {id:'781987881687',contact:'Chris Wilcox',company:'Zenith Insurance Partners',stage:'Attempting',owner:'Hannah',hrs:669,reply:'2026-02-18',next:null,opens:60,dup:true,flag:null},
+  {id:'781971617523',contact:'Gerald Wood',company:'Wood Insurance Agency',stage:'Connected',owner:'Hannah',hrs:576,reply:'2026-05-26',next:null,opens:39,dup:false,flag:null},
+  {id:'780145114852',contact:'Kayley Smith',company:'Southwest Indep. Insurance',stage:'Connected',owner:'Sam',hrs:551,reply:'2026-06-11',next:'2026-06-23',opens:45,dup:true,flag:null},
+  {id:'781310154462',contact:'Kayley Smith',company:'Southwest Indep. Insurance',stage:'Connected',owner:'Sam',hrs:551,reply:'2026-06-11',next:'2026-06-23',opens:45,dup:true,flag:null},
+  {id:'782797144768',contact:'Kendall Keil',company:'Covenant Insurance',stage:'Discovery Booked',owner:'Hannah',hrs:549,reply:'2026-05-29',next:'2026-06-22',opens:9,dup:false,flag:null},
+  {id:'781385379550',contact:'Jon Marsh',company:'Tobash Insurance Agency',stage:'Attempting',owner:'Sam',hrs:546,reply:null,next:null,opens:0,dup:false,flag:null},
+  {id:'780126060241',contact:'Sherri Lewis',company:'Miller-Schuring Agency',stage:'Connected',owner:'Sam',hrs:444,reply:'2026-06-11',next:null,opens:20,dup:true,flag:null},
+  {id:'780128002806',contact:'Alan Czaplicki',company:'EmpireOne Insurance',stage:'Connected',owner:'Sam',hrs:432,reply:'2026-06-01',next:null,opens:2,dup:false,flag:null},
+  {id:'783376764647',contact:'Ray Howard',company:'Howard Insurance',stage:'Connected',owner:'Sam',hrs:432,reply:'2026-06-01',next:null,opens:31,dup:true,flag:null},
+  {id:'786040850157',contact:'Chanda Shirley',company:'BHC Insurance',stage:'Attempting',owner:'Sam',hrs:429,reply:null,next:null,opens:0,dup:false,flag:null},
+  {id:'787839544039',contact:'Marsha Carpenter',company:'Patrick H Carpenter',stage:'New',owner:'Sam',hrs:405,reply:'2026-05-28',next:null,opens:10,dup:true,flag:null},
+  {id:'784858940141',contact:'Leandro Aguiar',company:'Southwest Indep. Insurance',stage:'Connected',owner:'Sam',hrs:405,reply:'2026-06-11',next:null,opens:0,dup:false,flag:null},
+  {id:'787729510112',contact:'Jessica Foster',company:'The Insurance Center',stage:'Attempting',owner:'Sam',hrs:379,reply:null,next:null,opens:4,dup:false,flag:null},
+  {id:'789382167260',contact:'Jeff Bickerstaff',company:'Bickerstaff Insurance',stage:'Discovery Booked',owner:'Sam',hrs:263,reply:'2026-06-11',next:'2026-06-19',opens:109,dup:true,flag:null},
+  {id:'789286414015',contact:'Gina Simpson',company:'Ozark Hills Insurance',stage:'Attempting',owner:'Sam',hrs:261,reply:null,next:null,opens:1,dup:false,flag:null},
+  {id:'792233534160',contact:'Payton Herbst',company:'Apex Insurance Solutions',stage:'New',owner:'Sam',hrs:210,reply:'2026-03-20',next:null,opens:20,dup:false,flag:null},
+  {id:'792243531495',contact:'Jared Morgan',company:'Paducah Insurance',stage:'Connected',owner:'Sam',hrs:191,reply:'2026-06-19',next:'2026-06-19',opens:10,dup:true,flag:null},
+  {id:'792625006295',contact:'MELISSA ESMURRIA',company:'MSC Insurance',stage:'New',owner:'Hannah',hrs:189,reply:null,next:null,opens:5,dup:false,flag:null},
+  {id:'792996883151',contact:'Deneen Manor',company:'JMJ Insurance',stage:'New',owner:'Sam',hrs:168,reply:'2024-04-10',next:null,opens:54,dup:false,flag:null},
+  {id:'792349525718',contact:'Kevin Panter',company:'Kevin Panter Insurance',stage:'Attempting',owner:'Sam',hrs:166,reply:'2025-12-09',next:null,opens:18,dup:false,flag:null},
+  {id:'792724635372',contact:'Lusine Hayrapetyan',company:'Lantern Financial',stage:'Attempting',owner:'Sam',hrs:165,reply:'2026-06-09',next:null,opens:7,dup:false,flag:null},
+  {id:'792571107048',contact:'Angela McCall',company:'Kevin Panter Insurance',stage:'Attempting',owner:'Sam',hrs:165,reply:null,next:null,opens:0,dup:false,flag:null},
+  {id:'792244338389',contact:'Carol Virden',company:'The Bachan Group',stage:'Attempting',owner:'Sam',hrs:165,reply:null,next:null,opens:14,dup:false,flag:null},
+  {id:'792505822930',contact:'Kimberly Johnson',company:'Kevin Panter Insurance',stage:'Connected',owner:'Sam',hrs:165,reply:'2026-06-15',next:null,opens:0,dup:false,flag:null},
+  {id:'794244356845',contact:'Karen Stokowski',company:'KC Insurance',stage:'Attempting',owner:'Hannah',hrs:91,reply:'2025-07-17',next:'2026-06-22',opens:31,dup:false,flag:null},
+  {id:'794210472646',contact:'Rebecca Ricciardi',company:'Satanoff Insurance',stage:'Connected',owner:'Hannah',hrs:91,reply:'2026-06-15',next:null,opens:44,dup:true,flag:null},
+  {id:'792565609201',contact:'Rebecca Ricciardi',company:'Satanoff Insurance',stage:'Connected',owner:'Sam',hrs:91,reply:'2026-06-15',next:null,opens:44,dup:true,flag:null},
+  {id:'792646701754',contact:'Rebecca Ricciardi',company:'Satanoff Insurance',stage:'Connected',owner:'Hannah',hrs:91,reply:'2026-06-15',next:null,opens:44,dup:true,flag:null},
+  {id:'795057132226',contact:'Tim Dean',company:'Insurance Incorporated',stage:'New',owner:'Sam',hrs:70,reply:'2026-04-04',next:null,opens:31,dup:false,flag:null},
+  {id:'795014031088',contact:'Elissa Biggerstaff',company:'McCashland Kirby Insurance',stage:'New',owner:'Sam',hrs:70,reply:'2025-07-08',next:'2026-07-14',opens:39,dup:false,flag:null},
+  {id:'795014032115',contact:'Sherri Lewis',company:'Miller-Schuring Agency',stage:'New',owner:'Sam',hrs:70,reply:'2026-06-11',next:null,opens:20,dup:true,flag:null},
+  {id:'794972069601',contact:'Chris Wilcox',company:'Zenith Insurance Partners',stage:'New',owner:'Sam',hrs:70,reply:'2026-02-18',next:null,opens:60,dup:true,flag:null},
+  {id:'795016122083',contact:'Chris Wilcox',company:'Zenith Insurance Partners',stage:'New',owner:'Sam',hrs:70,reply:'2026-02-18',next:null,opens:60,dup:true,flag:null},
+  {id:'794996672234',contact:'Timothy Gill',company:'David Martin Insurance',stage:'New',owner:'Sam',hrs:68,reply:null,next:null,opens:1,dup:false,flag:null},
+  {id:'795264767737',contact:'Jeff Bickerstaff',company:'Bickerstaff Insurance',stage:'New',owner:'Hannah',hrs:64,reply:'2026-06-11',next:'2026-06-19',opens:109,dup:true,flag:null},
+  {id:'795348157137',contact:'Jared Morgan',company:'Paducah Insurance',stage:'Connected',owner:'Sam',hrs:63,reply:'2026-06-19',next:'2026-06-19',opens:10,dup:true,flag:null},
+  {id:'795823546080',contact:'Stephen Galo (info)',company:'GALO Insurance',stage:'New',owner:'Hannah',hrs:46,reply:null,next:null,opens:3,dup:false,flag:null},
+  {id:'795682937548',contact:'Aimee Coffey',company:'Legacy Insurance Partners',stage:'Connected',owner:'Hannah',hrs:46,reply:'2026-06-17',next:'2026-06-25',opens:0,dup:false,flag:null},
+  {id:'795761965785',contact:'Stephen Galo (steve)',company:'GALO Insurance',stage:'New',owner:'Sam',hrs:46,reply:'2025-10-09',next:null,opens:1,dup:false,flag:null},
+  {id:'795876221645',contact:'Michael Trahan',company:'Trinity Insurance',stage:'Connected',owner:'Walter',hrs:43,reply:'2026-06-17',next:null,opens:2,dup:false,flag:null},
+  {id:'793034334923',contact:'Ken Carmona',company:'Lantern Financial',stage:'Connected',owner:'Sam',hrs:43,reply:'2026-06-17',next:null,opens:1,dup:true,flag:null},
+  {id:'792816224976',contact:'Ken Carmona',company:'Lantern Financial',stage:'Connected',owner:'Sam',hrs:43,reply:'2026-06-17',next:null,opens:1,dup:true,flag:null},
+  {id:'796569902833',contact:'John Warn',company:'Rue Insurance',stage:'New',owner:'Sam',hrs:24,reply:'2026-05-22',next:'2026-06-22',opens:22,dup:true,flag:null},
+  {id:'796556900034',contact:'NOAH SCHURING',company:'Miller-Schuring Agency',stage:'New',owner:'Hannah',hrs:24,reply:'2026-06-11',next:null,opens:12,dup:false,flag:null},
+  {id:'796694231773',contact:'Olivia Leon',company:'Satanoff Insurance',stage:'New',owner:'Hannah',hrs:22,reply:'2026-06-15',next:null,opens:1,dup:true,flag:null},
+  {id:'796662222526',contact:'Olivia Leon',company:'Satanoff Insurance',stage:'New',owner:'Hannah',hrs:21,reply:'2026-06-15',next:null,opens:1,dup:true,flag:null},
+  {id:'796871756481',contact:'Kristina LaBarre',company:'Sentinel Insurance Partners',stage:'Attempting',owner:'Hannah',hrs:20,reply:'2026-06-18',next:'2026-06-22',opens:4,dup:false,flag:null},
+  {id:'795061679857',contact:'Kayley Smith',company:'Southwest Indep. Insurance',stage:'Attempting',owner:'Sam',hrs:18,reply:'2026-06-11',next:'2026-06-23',opens:45,dup:true,flag:null},
+  {id:'792230742763',contact:'Brian Ruiz',company:'Brian Ruiz Insurance',stage:'Connected',owner:'Sam',hrs:17,reply:'2026-06-18',next:null,opens:96,dup:false,flag:null},
+  {id:'796602537682',contact:'Jared Morgan',company:'Paducah Insurance',stage:'Connected',owner:'Hannah',hrs:14,reply:'2026-06-19',next:'2026-06-19',opens:10,dup:true,flag:null},
+  {id:'794829838052',contact:'Abby Moshier',company:'Higgins Insurance',stage:'Attempting',owner:'Hannah',hrs:7,reply:'2026-06-15',next:null,opens:9,dup:true,flag:null},
+  {id:'794772317931',contact:'Abby Moshier',company:'Higgins Insurance',stage:'Attempting',owner:'Hannah',hrs:7,reply:'2026-06-15',next:null,opens:9,dup:true,flag:null},
+];
+
+function daysSince(d){if(!d)return Infinity;return Math.floor((TODAY-new Date(d))/MS_DAY);}
+function staleness(r){const d=daysSince(r.reply);if(d<=7)return'hot';if(d<=21)return'warm';if(d<=45)return'cooling';return'cold';}
+function replyLabel(r){const d=daysSince(r.reply);if(d===Infinity)return'—';if(d===0)return'Today';if(d===1)return'Yesterday';return d+'d ago';}
+function nextLabel(n){if(!n)return'—';const d=Math.floor((new Date(n)-TODAY)/MS_DAY);if(d<0)return'<span style="color:#A32D2D">Overdue</span>';if(d===0)return'<strong>Today</strong>';return n.slice(5);}
+function stageBadge(s){const m={'New':'b-new','Attempting':'b-att','Connected':'b-con','Discovery Booked':'b-disc'};return`<span class="badge ${m[s]||'b-new'}">${s}</span>`;}
+function statusBadge(r){const s=staleness(r);const m={'hot':'b-hot Hot','warm':'b-warm Warm','cooling':'b-cool Cooling','cold':'b-cold Cold'};return`<span class="badge ${m[s]}">${m[s].split(' ')[1]}</span>`;}
+function ownerBadge(o){const m={'Sam':'b-owner-s','Hannah':'b-owner-h','Walter':'b-owner-w','Brad':'b-owner-b'};return`<span class="badge ${m[o]||'b-owner-s'}">${o}</span>`;}
+function repLabel(name){
+  if(!name)return'<span class="rep-none">No reply</span>';
+  const cls={'Sam Ruben':'rep-sam','Hannah Butler':'rep-hannah','Walter Harry':'rep-walter','Brad Ruben':'rep-brad','Mary Rojo':'rep-mary','Naomi Andrada':'rep-naomi'};
+  return`<span class="${cls[name]||'rep-other'}">${name}</span>`;
+}
+
+const enriched=raw.map(r=>({...r,stale:staleness(r),repliedTo:REPLY_TO[r.contact]||null}));
+
+// ── Per-rep cards ──
+const REPS = [
+  {key:'Sam',  label:'Sam Ruben',     accent:'rep-accent-sam',    color:'#185FA5'},
+  {key:'Hannah',label:'Hannah Butler',accent:'rep-accent-hannah', color:'#534AB7'},
+  {key:'Walter',label:'Walter Harry', accent:'rep-accent-walter', color:'#3B6D11'},
+  {key:'Brad',  label:'Brad Ruben',   accent:'rep-accent-brad',   color:'#854F0B'},
+];
+const STAGES=['New','Attempting','Connected','Discovery Booked'];
+const STALE_KEYS=['hot','warm','cooling','cold'];
+const STALE_LABELS={hot:'Hot',warm:'Warm',cooling:'Cooling',cold:'Cold'};
+const STALE_CLS={hot:'pill-hot',warm:'pill-warm',cooling:'pill-cool',cold:'pill-cold'};
+
+function renderRepCards(){
+  const grid=document.getElementById('rep-grid');
+  grid.innerHTML=REPS.map(rep=>{
+    const leads=enriched.filter(r=>r.owner===rep.key);
+    const total=leads.length;
+    const stageCounts={};STAGES.forEach(s=>stageCounts[s]=0);
+    leads.forEach(r=>{if(stageCounts[r.stage]!==undefined)stageCounts[r.stage]++;});
+    const staleCounts={hot:0,warm:0,cooling:0,cold:0};
+    leads.forEach(r=>staleCounts[r.stale]++);
+    const maxStage=Math.max(...Object.values(stageCounts),1);
+
+    const stageBars=STAGES.map(s=>{
+      const w=Math.round(stageCounts[s]/maxStage*100);
+      return`<div class="rep-bar-row">
+        <span class="rep-bar-label">${s}</span>
+        <div class="rep-bar-track"><div class="rep-bar-fill" style="width:${w}%;background:${rep.color}"></div></div>
+        <span class="rep-bar-num">${stageCounts[s]}</span>
+      </div>`;
+    }).join('');
+
+    const stalePills=STALE_KEYS.map(k=>`
+      <button class="rep-status-pill ${STALE_CLS[k]}" onclick="openModal('${rep.key}','${rep.label}','${k}')">
+        <span class="num">${staleCounts[k]}</span>
+        <span class="lbl">${STALE_LABELS[k]}</span>
+      </button>`).join('');
+
+    return`<div class="rep-card ${rep.accent}">
+      <div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:4px">${rep.label}</div>
+        <div style="font-size:30px;font-weight:500;line-height:1;color:${rep.color}">${total}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">open leads</div>
+      </div>
+      <div>
+        <div class="rep-section-label">By stage</div>
+        <div class="rep-bars">${stageBars}</div>
+      </div>
+      <div>
+        <div class="rep-section-label">By status</div>
+        <div class="rep-status-row">${stalePills}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Overall stats ──
+function renderStats(){
+  const hot=enriched.filter(r=>r.stale==='hot').length;
+  const cold=enriched.filter(r=>r.stale==='cold').length;
+  const dups=enriched.filter(r=>r.dup).length;
+  document.getElementById('stat-cards').innerHTML=`
+    <div class="card"><div class="card-label">Total leads</div><div class="card-val">${enriched.length}</div><div class="card-sub">Across Sam, Hannah & Walter</div></div>
+    <div class="card"><div class="card-label">Hot (replied &le;7d)</div><div class="card-val" style="color:#3B6D11">${hot}</div><div class="card-sub">Actively engaged</div></div>
+    <div class="card"><div class="card-label">Cold (46d+ or never)</div><div class="card-val" style="color:#A32D2D">${cold}</div><div class="card-sub">Need re-engagement</div></div>
+    <div class="card"><div class="card-label">Duplicate records</div><div class="card-val" style="color:#854F0B">${dups}</div><div class="card-sub">Same contact, multiple leads</div></div>
+  `;
+}
+
+// ── Table ──
+const allReps=[...new Set(enriched.map(r=>r.repliedTo).filter(Boolean))].sort();
+const sel=document.getElementById('f-repTo');
+allReps.forEach(rep=>{const o=document.createElement('option');o.value=rep;o.textContent=rep;sel.appendChild(o);});
+
+function getFiltered(){
+  const owner=document.getElementById('f-owner').value;
+  const stage=document.getElementById('f-stage').value;
+  const status=document.getElementById('f-status').value;
+  const repTo=document.getElementById('f-repTo').value;
+  const search=document.getElementById('f-search').value.toLowerCase();
+  return enriched.filter(r=>{
+    if(owner&&r.owner!==owner)return false;
+    if(stage&&r.stage!==stage)return false;
+    if(status){
+      if(status==='dup'&&!r.dup)return false;
+      if(status==='flag'&&!r.flag)return false;
+      if(['hot','warm','cooling','cold'].includes(status)&&r.stale!==status)return false;
+    }
+    if(repTo&&r.repliedTo!==repTo)return false;
+    if(search&&!r.contact.toLowerCase().includes(search)&&!r.company.toLowerCase().includes(search))return false;
+    return true;
+  });
+}
+
+let sortCol='reply',sortAsc=true;
+document.querySelectorAll('th[data-col]').forEach(th=>{
+  th.addEventListener('click',()=>{
+    const c=th.dataset.col;
+    if(sortCol===c)sortAsc=!sortAsc;else{sortCol=c;sortAsc=true;}
+    render();
+  });
+});
+
+function sortData(arr){
+  return[...arr].sort((a,b)=>{
+    let av=a[sortCol],bv=b[sortCol];
+    if(sortCol==='reply'){av=a.reply||'0000';bv=b.reply||'0000';}
+    if(sortCol==='next'){av=a.next||'9999';bv=b.next||'9999';}
+    if(sortCol==='repliedTo'){av=a.repliedTo||'zzz';bv=b.repliedTo||'zzz';}
+    if(typeof av==='number')return sortAsc?av-bv:bv-av;
+    return sortAsc?(av||'').localeCompare(bv||''):(bv||'').localeCompare(av||'');
+  });
+}
+
+function render(){
+  const filtered=getFiltered();
+  const sorted=sortData(filtered);
+  document.getElementById('count-label').textContent=sorted.length+' of '+enriched.length+' leads';
+  const tb=document.getElementById('tbody');
+  if(!sorted.length){tb.innerHTML=`<tr><td colspan="10" class="no-results">No leads match the current filters</td></tr>`;return;}
+  tb.innerHTML=sorted.map(r=>{
+    const rowCls=r.stale==='hot'?'row-hot':r.stale==='cold'||r.stale==='cooling'?'row-cold':r.stale==='warm'?'row-warm':'';
+    const flags=(r.dup?'<span class="flag-dup" title="Duplicate contact">2x</span>':'')+(r.flag==='churn'?'<span class="flag-fire" title="Churn risk">!</span>':'');
+    return`<tr class="${rowCls}">
+      <td title="${r.contact}">${r.contact}</td>
+      <td title="${r.company}">${r.company}</td>
+      <td>${ownerBadge(r.owner)}</td>
+      <td>${stageBadge(r.stage)}</td>
+      <td style="color:var(--text2)">${r.hrs.toLocaleString()}</td>
+      <td>${replyLabel(r)}</td>
+      <td>${repLabel(r.repliedTo)}</td>
+      <td>${nextLabel(r.next)}</td>
+      <td>${statusBadge(r)}</td>
+      <td style="text-align:center">${flags}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Modal logic ──
+const STALE_COLORS={hot:'#3B6D11',warm:'#854F0B',cooling:'#993C1D',cold:'#A32D2D'};
+
+function openModal(ownerKey, ownerLabel, staleKey){
+  const leads=enriched.filter(r=>r.owner===ownerKey&&r.stale===staleKey);
+  // dedupe by contact name, keep first occurrence
+  const seen=new Set();
+  const unique=leads.filter(r=>{if(seen.has(r.contact))return false;seen.add(r.contact);return true;});
+
+  document.getElementById('modal-title').textContent=`${ownerLabel} — ${STALE_LABELS[staleKey]} leads (${unique.length})`;
+  document.getElementById('modal-body').innerHTML = unique.length===0
+    ? '<p style="padding:20px;color:var(--text3);text-align:center">No leads in this category</p>'
+    : unique.map(r=>{
+        const link=hsLink(r.contact);
+        const nameEl=link
+          ?`<a class="modal-item-name" href="${link}" target="_blank" rel="noopener">${r.contact} ↗</a>`
+          :`<span class="modal-item-name">${r.contact}</span>`;
+        const d=daysSince(r.reply);
+        const replyStr=d===Infinity?'Never replied':d===0?'Replied today':d===1?'Replied yesterday':`Replied ${d}d ago`;
+        return`<div class="modal-item">
+          <div class="modal-item-left">
+            ${nameEl}
+            <span class="modal-item-co">${r.company}</span>
+          </div>
+          <div class="modal-item-right">
+            ${stageBadge(r.stage)}
+            <span class="modal-item-reply">${replyStr}</span>
+          </div>
+        </div>`;
+      }).join('');
+
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
+document.getElementById('modal-close').addEventListener('click',closeModal);
+document.getElementById('modal-overlay').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+renderStats();
+renderRepCards();
+render();
+['f-owner','f-stage','f-status','f-repTo','f-search'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+</script>
+</body>
+</html>
